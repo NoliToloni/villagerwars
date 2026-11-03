@@ -99,3 +99,15 @@
            Settlement s = pick(d.settlements, IntegerArgumentType.getInteger(c, "nr"));
            if (s == null) {
                c.getSource().sendFailure(Component.literal("Ungültige Nummer"));
+                             return 0;
+           }
+           s.food += 300; s.wood += 100; s.iron += 100; s.gold += 50;
+           d.setDirty();
+           c.getSource().sendSuccess(() -> Component.literal(s.name + " hat Vorräte erhalten."), true);
+           return 1;
+       }
+
+       private Settlement pick(List<Settlement> l, int nr) {
+           return nr >= 1 && nr <= l.size() ? l.get(nr - 1) : null;
+       }
+   }
