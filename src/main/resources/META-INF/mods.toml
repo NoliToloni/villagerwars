@@ -1,0 +1,31 @@
+   modLoader="javafml"
+   loaderVersion="[47,)"
+   license="MIT"
+
+   [[mods]]
+   modId="villagewars"
+   version="0.1.0"
+   displayName="Village Wars"
+   authors="Noah"
+   description='''Dörfer entwickeln eigene Wirtschaft, Armeen und Fraktionen und führen Krieg gegeneinander. Baut auf Villager Recruits auf.'''
+
+   [[dependencies.villagewars]]
+   modId="forge"
+   mandatory=true
+   versionRange="[47,)"
+   ordering="NONE"
+   side="BOTH"
+
+   [[dependencies.villagewars]]
+   modId="minecraft"
+   mandatory=true
+   versionRange="[1.20.1,1.21)"
+   ordering="NONE"
+   side="BOTH"
+
+   [[dependencies.villagewars]]
+   modId="recruits"
+   mandatory=true
+   versionRange="[1.15,)"
+   ordering="AFTER"
+   side="BOTH"
