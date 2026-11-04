@@ -100,6 +100,9 @@ public class Actions {
         if (done == 0) return fail("Söldner konnten nicht erscheinen (ist Recruits geladen?). Smaragde zurück.");
         return ok(done + " Söldner aus " + s.name + " stehen bei dir."
                 + (allOwned ? "" : " Sprich sie per Rechtsklick an, um sie zu übernehmen."));
+    }    /** Preis für ein Dorf ohne Krieger: wächst mit der Einwohnerzahl. */
+    public static int claimCost(int population) {
+        return 40 + population * 2;
     }
 
     private static Result claim(ServerPlayer p, SettlementData d, Settlement s) {
@@ -107,9 +110,8 @@ public class Actions {
         boolean first = countOwned(d, p) == 0;
         if (!first) {
             boolean conquered = s.soldiers <= 0 || War.isFallen(s.id, p.getServer().overworld().getGameTime());
-            int rep = d.getRep(p.getUUID(), s);
-            if (!conquered && rep < 50) return fail("Du brauchst Ruf 50 (du hast " + rep + "), oder das Dorf muss ohne Soldaten sein.");
-            int cost = conquered ? 8 : 24;
+            if (!conquered) return fail(s.name + " hat noch Krieger. Erkläre den Krieg und besiege sie zuerst.");
+            int cost = claimCost(s.population);
             if (!take(p, Items.GOLD_INGOT, cost)) return fail("Du brauchst " + cost + " Goldbarren im Inventar.");
         }
 
