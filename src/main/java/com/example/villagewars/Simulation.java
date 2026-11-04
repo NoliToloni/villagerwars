@@ -371,6 +371,7 @@
                mob.setPersistenceRequired();
                (attackers ? ex.atkEntities : ex.defEntities).add(mob.getUUID());
                mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.EVENT, null, null);
+               Equipment.apply(mob, owner, rnd, true);
                level.addFreshEntity(mob);
                sb.addPlayerToTeam(mob.getScoreboardName(), team);
            }
