@@ -31,27 +31,34 @@ public class Net {
 
     // ------------------------------------------------------------------ Client -> Server
 
-    /** action 0 = nur Menü öffnen / aktualisieren. */
+    /** action 0 = nur Menü öffnen / aktualisieren. arg = z.B. Anzahl oder Nachbardorf-Nummer. */
     public static class ActionMsg {
         public final int action;
+        public final int arg;
 
         public ActionMsg(int action) {
+            this(action, 0);
+        }
+
+        public ActionMsg(int action, int arg) {
             this.action = action;
+            this.arg = arg;
         }
 
         public static void encode(ActionMsg m, FriendlyByteBuf b) {
             b.writeVarInt(m.action);
+            b.writeVarInt(m.arg);
         }
 
         public static ActionMsg decode(FriendlyByteBuf b) {
-            return new ActionMsg(b.readVarInt());
+            return new ActionMsg(b.readVarInt(), b.readVarInt());
         }
 
         public static void handle(ActionMsg m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> {
                 ServerPlayer p = ctx.get().getSender();
                 if (p == null) return;
-                Actions.Result r = m.action == 0 ? null : Actions.run(p, m.action);
+                Actions.Result r = m.action == 0 ? null : Actions.run(p, m.action, m.arg);
                 sendInfo(p, r);
             });
             ctx.get().setPacketHandled(true);
@@ -73,7 +80,7 @@ public class Net {
         public int food, wood, iron, gold;
         public int rep;
         public String owner = "";
-        public boolean mine, war;
+        public boolean mine, war, hasOwn, fallen;
         public String feedback = "";
         public boolean ok;
         public final List<Neighbour> neighbours = new ArrayList<>();
@@ -101,23 +108,21 @@ public class Net {
             m.rep = d.getRep(p.getUUID(), s);
             m.owner = s.owner == null ? "" : s.ownerName;
             m.mine = s.owner != null && s.owner.equals(p.getUUID());
-            m.war = d.atWar(s);
+            m.war = d.atWar(s) || War.inWar(d, s);
+            m.fallen = War.isFallen(s.id, p.getServer().overworld().getGameTime());
+            m.hasOwn = Actions.countOwned(d, p) > 0;
 
-            for (Settlement o : d.settlements) {
-                if (o == s) continue;
-                double dist = Math.sqrt(Simulation.horizDistSq(s.center, o.center));
-                if (dist > Simulation.WAR_RANGE) continue;
-                Neighbour n = new Neighbour();
-                n.name = o.name;
-                n.rel = d.getRelation(s, o);
-                n.dist = (int) dist;
+            for (Settlement o : Actions.neighbours(d, s)) {
+                Neighbour nb = new Neighbour();
+                nb.name = o.name;
+                nb.rel = d.getRelation(s, o);
+                nb.dist = (int) Math.sqrt(Simulation.horizDistSq(s.center, o.center));
                 for (Expedition e : d.expeditions) {
-                    if ((e.from.equals(s.id) && e.to.equals(o.id)) || (e.from.equals(o.id) && e.to.equals(s.id))) n.war = true;
+                    if ((e.from.equals(s.id) && e.to.equals(o.id)) || (e.from.equals(o.id) && e.to.equals(s.id))) nb.war = true;
                 }
-                m.neighbours.add(n);
+                if (War.isWar(d, s, o)) nb.war = true;
+                m.neighbours.add(nb);
             }
-            m.neighbours.sort((a, b) -> Integer.compare(a.dist, b.dist));
-            while (m.neighbours.size() > 4) m.neighbours.remove(m.neighbours.size() - 1);
             return m;
         }
 
@@ -136,6 +141,8 @@ public class Net {
             b.writeUtf(m.owner);
             b.writeBoolean(m.mine);
             b.writeBoolean(m.war);
+            b.writeBoolean(m.hasOwn);
+            b.writeBoolean(m.fallen);
             b.writeUtf(m.feedback);
             b.writeBoolean(m.ok);
             b.writeVarInt(m.neighbours.size());
@@ -163,6 +170,8 @@ public class Net {
             m.owner = b.readUtf();
             m.mine = b.readBoolean();
             m.war = b.readBoolean();
+            m.hasOwn = b.readBoolean();
+            m.fallen = b.readBoolean();
             m.feedback = b.readUtf();
             m.ok = b.readBoolean();
             int n = b.readVarInt();
