@@ -40,7 +40,7 @@ public class War {
         long lastNear;
     }
 
-    private final Map<UUID, Defense> defenses = new HashMap<>();
+    private static final Map<UUID, Defense> defenses = new HashMap<>();
     private final Simulation sim = new Simulation();
     private final RandomSource rnd = RandomSource.create();
 
@@ -79,6 +79,35 @@ public class War {
     public static boolean isFallen(UUID id, long now) {
         Long t = FALLEN.get(id);
         return t != null && t > now;
+    }
+
+    /** Verteidiger eines Dorfes, die gerade im Kampf leben. */
+    public static int field(ServerLevel level, UUID settlementId) {
+        Defense def = defenses.get(settlementId);
+        return def == null ? 0 : countAlive(level, def.ids);
+    }
+
+    /** Besitzer eines Recruits-Soldaten (Recruits-Besitzer oder das Zeichen deines Schwert-Addons), sonst null. */
+    public static UUID ownerOf(Mob m) {
+        if (m.getPersistentData().contains("vw_def")) return null;
+        ResourceLocation id = ForgeRegistries.ENTITY_TYPES.getKey(m.getType());
+        if (id == null || !id.getNamespace().equals("recruits")) return null;
+        try {
+            Object o = m.getClass().getMethod("getOwnerUUID").invoke(m);
+            if (o instanceof UUID u) return u;
+        } catch (Throwable ignored) {
+        }
+        if (m.getPersistentData().hasUUID("recruitOwner")) return m.getPersistentData().getUUID("recruitOwner");
+        return null;
+    }
+
+    /** Wie viele Rekruten des Spielers stehen im Umkreis des Dorfes. */
+    public static int ownTroops(ServerLevel level, BlockPos center, UUID owner, int radius) {
+        int n = 0;
+        for (Mob m : level.getEntitiesOfClass(Mob.class, new AABB(center).inflate(radius))) {
+            if (m.isAlive() && owner.equals(ownerOf(m))) n++;
+        }
+        return n;
     }
 
     private static Settlement[] pair(SettlementData d, String k) {
@@ -280,15 +309,9 @@ public class War {
         }
     }
 
-    /** Ein Recruits-Soldat mit Besitzer (per Reflection abgefragt, weil wir nicht dagegen kompilieren). */
+    /** Ein Recruits-Soldat mit Besitzer. */
     private static boolean isPlayerRecruit(Mob m) {
-        if (m.getPersistentData().contains("vw_def")) return false;
-        try {
-            Object o = m.getClass().getMethod("getOwnerUUID").invoke(m);
-            return o instanceof UUID;
-        } catch (Throwable t) {
-            return false;
-        }
+        return ownerOf(m) != null;
     }
 
     private static List<Mob> aliveMobs(ServerLevel level, List<UUID> ids) {
