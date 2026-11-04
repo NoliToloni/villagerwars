@@ -63,7 +63,7 @@ public class VillageScreen extends Screen {
             boolean canHire = info.rep >= 20;
             String claim = !info.hasOwn ? "Anführer werden (gratis)"
                     : "Übernehmen (" + Actions.claimCost(info.population) + " Gold)";
-            boolean canClaim = info.owner.isEmpty() && (!info.hasOwn || info.soldiers <= 0 || info.fallen);
+            boolean canClaim = info.owner.isEmpty() && (!info.hasOwn || info.soldiers + info.field <= 0 || info.fallen);
             add(x1, y, w, 20, "Hand-Item schenken", Actions.GIFT, 0, true);
             add(x2, y, w, 20, "Söldner stellen x3 (6 Gold)", Actions.SUPPORT, 0, true);
             add(x1, y + 24, w, 20, "Anheuern x1 (3 Smaragde)", Actions.HIRE1, 0, canHire);
@@ -110,14 +110,17 @@ public class VillageScreen extends Screen {
             g.drawString(this.font, tag, left + W - 10 - this.font.width(tag), top + 10, info.mine ? 0xFF55FF55 : 0xFFFFDD66);
         }
         g.drawString(this.font, "Einwohner " + info.population + "   Soldaten " + info.soldiers
-                + "   Ausrüstung: " + Equipment.TIER_NAMES[Math.min(3, info.tier)], tx, top + 26, 0xFFDDDDDD);
+                + (info.field > 0 ? " (+" + info.field + " im Kampf)" : ""), tx, top + 26, 0xFFDDDDDD);
         g.drawString(this.font, "Nahrung " + info.food + "   Holz " + info.wood + "   Eisen " + info.iron + "   Gold " + info.gold,
                 tx, top + 38, 0xFFDDDDDD);
-        if (!info.mine) {
-            g.drawString(this.font, "Dein Ruf: " + info.rep + " (" + describe(info.rep) + ")", tx, top + 50, 0xFF99DDFF);
+        String eq = "Ausrüstung: " + Equipment.TIER_NAMES[Math.min(3, info.tier)];
+        if (info.mine) {
+            g.drawString(this.font, "Deine Rekruten hier: " + info.troops + "   " + eq, tx, top + 50, 0xFF99DDFF);
+        } else {
+            g.drawString(this.font, "Dein Ruf: " + info.rep + " (" + describe(info.rep) + ")   " + eq, tx, top + 50, 0xFF99DDFF);
         }
-        if (info.fallen) g.drawString(this.font, "BESIEGT", left + W - 10 - this.font.width("BESIEGT"), top + 50, 0xFFFFAA00);
-        else if (info.war) g.drawString(this.font, "IM KRIEG", left + W - 10 - this.font.width("IM KRIEG"), top + 50, 0xFFFF5555);
+        if (info.fallen) g.drawString(this.font, "BESIEGT", left + W - 10 - this.font.width("BESIEGT"), top + 26, 0xFFFFAA00);
+        else if (info.war) g.drawString(this.font, "IM KRIEG", left + W - 10 - this.font.width("IM KRIEG"), top + 26, 0xFFFF5555);
 
         g.drawString(this.font, "Nachbardörfer:", tx, top + 68, 0xFFAAAAAA);
         if (info.neighbours.isEmpty()) {
@@ -131,9 +134,9 @@ public class VillageScreen extends Screen {
             ny += 12;
         }
 
-         String hint = info.mine ? "Krieg erklären, dann selbst mit deinen Soldaten hinziehen."
+        String hint = info.mine ? "Krieg erklären, dann selbst mit deinen Soldaten hinziehen."
                 : (!info.hasOwn ? "Du führst noch kein Dorf: übernimm dieses gratis."
-                : (info.owner.isEmpty() && info.soldiers > 0 && !info.fallen ? "Nur Dörfer ohne Krieger sind käuflich: erst besiegen." : ""));
+                : (info.owner.isEmpty() && info.soldiers + info.field > 0 && !info.fallen ? "Nur Dörfer ohne Krieger sind käuflich: erst besiegen." : ""));
         if (!hint.isEmpty()) g.drawString(this.font, hint, tx, top + 134, 0xFF999999);
 
         drawFeedback(g, tx);
