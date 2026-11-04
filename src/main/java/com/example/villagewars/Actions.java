@@ -15,19 +15,21 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /** Alle Spieleraktionen (werden vom Menü aufgerufen). */
 public class Actions {
     public static final int RANGE = 120;
-    public static final int GIFT = 1, SUPPORT = 2, HIRE1 = 3, HIRE3 = 4, CLAIM = 5, COLLECT = 6;
+    public static final int GIFT = 1, SUPPORT = 2, HIRE1 = 3, HIRE3 = 4, CLAIM = 5, COLLECT = 6, DECLARE = 7, PEACE = 8;
 
     public record Result(boolean ok, String msg) {}
 
     private static Result ok(String m) { return new Result(true, m); }
     private static Result fail(String m) { return new Result(false, m); }
 
-    public static Result run(ServerPlayer p, int action) {
+    public static Result run(ServerPlayer p, int action, int arg) {
         SettlementData d = SettlementData.get(p.getServer().overworld());
         Settlement s = Simulation.nearest(d, p.blockPosition(), RANGE);
         if (s == null) return fail("Kein Dorf in der Nähe.");
@@ -38,6 +40,8 @@ public class Actions {
             case HIRE3 -> hire(p, d, s, 3);
             case CLAIM -> claim(p, d, s);
             case COLLECT -> collect(p, d, s);
+            case DECLARE -> declare(p, d, s, arg);
+            case PEACE -> peace(p, d, s, arg);
             default -> fail("Unbekannte Aktion.");
         };
     }
@@ -76,7 +80,8 @@ public class Actions {
         int rep = d.getRep(p.getUUID(), s);
         if (rep < 20) return fail(s.name + " vertraut dir noch nicht (Ruf mind. 20, du hast " + rep + ").");
         if (s.soldiers - n < 2) return fail(s.name + " kann so viele Soldaten nicht entbehren.");
-        if (!take(p, Items.EMERALD, n * 3)) return fail("Du brauchst " + (n * 3) + " Smaragde im Inventar.");
+        boolean mine = isOwner(p, s);
+        if (!mine && !take(p, Items.EMERALD, n * 3)) return fail("Du brauchst " + (n * 3) + " Smaragde im Inventar.");
 
         s.soldiers -= n;
         int done = 0;
@@ -89,7 +94,7 @@ public class Actions {
         }
         if (done < n) {
             s.soldiers += n - done;
-            give(p, Items.EMERALD, (n - done) * 3);
+            if (!mine) give(p, Items.EMERALD, (n - done) * 3);
         }
         d.setDirty();
         if (done == 0) return fail("Söldner konnten nicht erscheinen (ist Recruits geladen?). Smaragde zurück.");
@@ -99,20 +104,63 @@ public class Actions {
 
     private static Result claim(ServerPlayer p, SettlementData d, Settlement s) {
         if (s.owner != null) return fail(s.name + " gehört schon " + s.ownerName + ".");
-        boolean conquered = s.soldiers <= 0;
-        int rep = d.getRep(p.getUUID(), s);
-        if (!conquered && rep < 50) return fail("Du brauchst Ruf 50 (du hast " + rep + "), oder das Dorf muss ohne Soldaten sein.");
-        int cost = conquered ? 8 : 24;
-        if (!take(p, Items.GOLD_INGOT, cost)) return fail("Du brauchst " + cost + " Goldbarren im Inventar.");
+        boolean first = countOwned(d, p) == 0;
+        if (!first) {
+            boolean conquered = s.soldiers <= 0 || War.isFallen(s.id, p.getServer().overworld().getGameTime());
+            int rep = d.getRep(p.getUUID(), s);
+            if (!conquered && rep < 50) return fail("Du brauchst Ruf 50 (du hast " + rep + "), oder das Dorf muss ohne Soldaten sein.");
+            int cost = conquered ? 8 : 24;
+            if (!take(p, Items.GOLD_INGOT, cost)) return fail("Du brauchst " + cost + " Goldbarren im Inventar.");
+        }
 
         s.owner = p.getUUID();
         s.ownerName = p.getGameProfile().getName();
         d.setRep(p.getUUID(), s, 100);
+        War.endWars(d, s);
         d.setDirty();
         p.getServer().getPlayerList().broadcastSystemMessage(
                 Component.literal("[Dorfkrieg] ").withStyle(ChatFormatting.DARK_RED)
-                        .append(Component.literal(s.ownerName + " übernimmt " + s.name + "!").withStyle(ChatFormatting.GRAY)), false);
-        return ok("Du hast " + s.name + " übernommen!");
+                        .append(Component.literal(s.ownerName + (first ? " führt jetzt " : " übernimmt ") + s.name + "!").withStyle(ChatFormatting.GRAY)), false);
+        return ok(first ? "Du führst jetzt " + s.name + "!" : "Du hast " + s.name + " übernommen!");
+    }
+
+    /** Anführer: Krieg erklären. Die Schlacht führst du selbst mit deinen Soldaten. */
+    private static Result declare(ServerPlayer p, SettlementData d, Settlement s, int idx) {
+        if (!isOwner(p, s)) return fail("Nur der Anführer kann Krieg erklären.");
+        List<Settlement> nb = neighbours(d, s);
+        if (idx < 0 || idx >= nb.size()) return fail("Dieses Dorf gibt es nicht mehr.");
+        Settlement t = nb.get(idx);
+        if (t.owner != null && t.owner.equals(p.getUUID())) return fail("Das ist dein eigenes Dorf.");
+        if (War.isWar(d, s, t)) return fail("Ihr seid schon im Krieg.");
+
+        War.setWar(d, s, t, true);
+        d.setRelation(s, t, -100);
+        int dist = (int) Math.sqrt(Simulation.horizDistSq(s.center, t.center));
+        p.getServer().getPlayerList().broadcastSystemMessage(
+                Component.literal("[Dorfkrieg] ").withStyle(ChatFormatting.DARK_RED)
+                        .append(Component.literal(s.name + " erklärt " + t.name + " den Krieg!").withStyle(ChatFormatting.GRAY)), false);
+        return ok("Krieg erklärt! " + t.name + " liegt " + dist + " Blöcke entfernt. Zieh mit deinen Soldaten hin.");
+    }
+
+    /** Anführer: Frieden gegen 10 Gold Tribut aus der Dorfkasse. */
+    private static Result peace(ServerPlayer p, SettlementData d, Settlement s, int idx) {
+        if (!isOwner(p, s)) return fail("Nur der Anführer kann Frieden schließen.");
+        List<Settlement> nb = neighbours(d, s);
+        if (idx < 0 || idx >= nb.size()) return fail("Dieses Dorf gibt es nicht mehr.");
+        Settlement t = nb.get(idx);
+        if (!War.isWar(d, s, t)) return fail("Ihr seid nicht im Krieg.");
+        for (Expedition e : d.expeditions) {
+            if ((e.from.equals(s.id) && e.to.equals(t.id)) || (e.from.equals(t.id) && e.to.equals(s.id))) {
+                return fail("Solange Truppen unterwegs sind, ist kein Frieden möglich.");
+            }
+        }
+        if (s.gold < 10) return fail("Die Dorfkasse braucht 10 Gold als Tribut.");
+        s.gold -= 10;
+        t.gold += 10;
+        War.setWar(d, s, t, false);
+        d.setRelation(s, t, 0);
+        d.setDirty();
+        return ok("Frieden mit " + t.name + " (10 Gold Tribut).");
     }
 
     private static Result collect(ServerPlayer p, SettlementData d, Settlement s) {
@@ -132,6 +180,28 @@ public class Actions {
     }
 
     // ------------------------------------------------------------------ Helfer
+
+    public static boolean isOwner(ServerPlayer p, Settlement s) {
+        return s.owner != null && s.owner.equals(p.getUUID());
+    }
+
+    public static int countOwned(SettlementData d, ServerPlayer p) {
+        int n = 0;
+        for (Settlement s : d.settlements) if (isOwner(p, s)) n++;
+        return n;
+    }
+
+    /** Die (bis zu) 4 nächsten Dörfer in Reichweite, nach Entfernung sortiert. */
+    public static List<Settlement> neighbours(SettlementData d, Settlement s) {
+        List<Settlement> list = new ArrayList<>();
+        for (Settlement o : d.settlements) {
+            if (o == s) continue;
+            if (Simulation.horizDistSq(s.center, o.center) > (double) Simulation.WAR_RANGE * Simulation.WAR_RANGE) continue;
+            list.add(o);
+        }
+        list.sort((x, y) -> Double.compare(Simulation.horizDistSq(s.center, x.center), Simulation.horizDistSq(s.center, y.center)));
+        return list.size() > 4 ? new ArrayList<>(list.subList(0, 4)) : list;
+    }
 
     private static int count(ServerPlayer p, Item item) {
         int n = 0;
