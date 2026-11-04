@@ -62,12 +62,13 @@ public class VillageScreen extends Screen {
         } else {
             boolean canHire = info.rep >= 20;
             String claim = !info.hasOwn ? "Anführer werden (gratis)"
-                    : "Übernehmen (" + (info.soldiers <= 0 || info.fallen ? "8" : "24") + " Gold)";
+                    : "Übernehmen (" + Actions.claimCost(info.population) + " Gold)";
+            boolean canClaim = info.owner.isEmpty() && (!info.hasOwn || info.soldiers <= 0 || info.fallen);
             add(x1, y, w, 20, "Hand-Item schenken", Actions.GIFT, 0, true);
             add(x2, y, w, 20, "Söldner stellen x3 (6 Gold)", Actions.SUPPORT, 0, true);
             add(x1, y + 24, w, 20, "Anheuern x1 (3 Smaragde)", Actions.HIRE1, 0, canHire);
             add(x2, y + 24, w, 20, "Anheuern x3 (9 Smaragde)", Actions.HIRE3, 0, canHire);
-            add(x1, y + 48, w, 20, claim, Actions.CLAIM, 0, info.owner.isEmpty());
+            add(x1, y + 48, w, 20, claim, Actions.CLAIM, 0, canClaim);
         }
     }
 
@@ -130,8 +131,9 @@ public class VillageScreen extends Screen {
             ny += 12;
         }
 
-        String hint = info.mine ? "Krieg erklären, dann selbst mit deinen Soldaten hinziehen."
-                : (!info.hasOwn ? "Du führst noch kein Dorf: übernimm dieses gratis." : "");
+         String hint = info.mine ? "Krieg erklären, dann selbst mit deinen Soldaten hinziehen."
+                : (!info.hasOwn ? "Du führst noch kein Dorf: übernimm dieses gratis."
+                : (info.owner.isEmpty() && info.soldiers > 0 && !info.fallen ? "Nur Dörfer ohne Krieger sind käuflich: erst besiegen." : ""));
         if (!hint.isEmpty()) g.drawString(this.font, hint, tx, top + 134, 0xFF999999);
 
         drawFeedback(g, tx);
