@@ -109,7 +109,8 @@ public class Actions {
         if (s.owner != null) return fail(s.name + " gehört schon " + s.ownerName + ".");
         boolean first = countOwned(d, p) == 0;
         if (!first) {
-            boolean conquered = s.soldiers <= 0 || War.isFallen(s.id, p.getServer().overworld().getGameTime());
+            boolean conquered = (s.soldiers <= 0 && War.field(p.getServer().overworld(), s.id) == 0)
+            || War.isFallen(s.id, p.getServer().overworld().getGameTime());
             if (!conquered) return fail(s.name + " hat noch Krieger. Erkläre den Krieg und besiege sie zuerst.");
             int cost = claimCost(s.population);
             if (!take(p, Items.GOLD_INGOT, cost)) return fail("Du brauchst " + cost + " Goldbarren im Inventar.");
