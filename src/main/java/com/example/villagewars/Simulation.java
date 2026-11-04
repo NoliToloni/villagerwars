@@ -198,7 +198,7 @@
 
            // Kriegserklärungen
            for (Settlement a : list) {
-               if (data.atWar(a) || now - a.lastWarTick < WAR_COOLDOWN || a.soldiers < 4) continue;
+               if (a.owner != null || data.atWar(a) || now - a.lastWarTick < WAR_COOLDOWN || a.soldiers < 4) continue;
                Settlement target = null;
                int worst = WAR_THRESHOLD;
                for (Settlement b : list) {
