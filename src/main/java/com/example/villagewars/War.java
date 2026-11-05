@@ -30,6 +30,7 @@ import java.util.*;
  */
 public class War {
     static final int TRIGGER = 70;        // Spieler so nah -> Verteidiger erscheinen
+    static final int GUARD_RANGE = 64;    // Spieler so nah -> die Wachen des Dorfes werden sichtbar
     static final int ABANDON = 160;       // Spieler weiter weg -> Verteidiger ziehen sich zurück
     static final int FALLEN_TICKS = 6000; // so lange ist ein besiegtes Dorf übernehmbar (5 Min.)
 
@@ -110,6 +111,14 @@ public class War {
         return n;
     }
 
+    private static boolean playerNear(ServerLevel level, BlockPos c, int range) {
+        for (ServerPlayer p : level.players()) {
+            if (p.isSpectator()) continue;
+            if (Simulation.horizDistSq(p.blockPosition(), c) <= (double) range * range) return true;
+        }
+        return false;
+    }
+
     private static Settlement[] pair(SettlementData d, String k) {
         try {
             String[] ids = k.substring(2).split("\\|");
@@ -176,6 +185,23 @@ public class War {
             trigger(server, level, d, pr[1], pr[0], now);
         }
 
+        // Friedenszeit: Wachen sichtbar machen, solange ein Spieler im Dorf ist
+        for (Settlement s : d.settlements) {
+            if (defenses.containsKey(s.id) || s.soldiers <= 0 || isFallen(s.id, now)) continue;
+            if (!playerNear(level, s.center, GUARD_RANGE)) continue;
+            int n = Math.min(10, s.soldiers);
+            Defense g = new Defense();
+            g.lastNear = now;
+            defenses.put(s.id, g);
+            spawnDefenders(level, s, g, n);
+            if (g.ids.isEmpty()) {
+                defenses.remove(s.id);
+                continue;
+            }
+            s.soldiers -= g.ids.size();
+            d.setDirty();
+        }
+
         for (Map.Entry<UUID, Defense> en : new ArrayList<>(defenses.entrySet())) {
             Settlement y = d.byId(en.getKey());
             Defense def = en.getValue();
@@ -185,14 +211,15 @@ public class War {
                 continue;
             }
             int alive = countAlive(level, def.ids);
+            if (playerNear(level, y.center, ABANDON)) def.lastNear = now;
             if (alive == 0) {
                 defenses.remove(y.id);
-                if (y.soldiers <= 0) {
+                if (y.soldiers <= 0 && inWar(d, y)) {
                     FALLEN.put(y.id, now + FALLEN_TICKS);
                     Simulation.tell(level, y.center, 300, Component.literal("[Dorfkrieg] " + y.name
                             + " ist gefallen und kann übernommen werden!").withStyle(ChatFormatting.DARK_RED));
                 }
-            } else if (!inWar(d, y) || now - def.lastNear > 600) {
+            } else if (now - def.lastNear > 600) {
                 y.soldiers += alive;
                 discard(level, def.ids);
                 defenses.remove(y.id);
@@ -259,7 +286,7 @@ public class War {
         SettlementData d = SettlementData.get(level);
         for (Map.Entry<UUID, Defense> en : defenses.entrySet()) {
             Settlement y = d.byId(en.getKey());
-            if (y == null) continue;
+            if (y == null || !inWar(d, y)) continue;
             List<Mob> defenders = aliveMobs(level, en.getValue().ids);
             if (defenders.isEmpty()) continue;
             Mob first = defenders.get(0);
@@ -309,7 +336,7 @@ public class War {
         }
     }
 
-    /** Ein Recruits-Soldat mit Besitzer. */
+    /** Ein Recruits-Soldat mit Besitzer (per Reflection abgefragt, weil wir nicht dagegen kompilieren). */
     private static boolean isPlayerRecruit(Mob m) {
         return ownerOf(m) != null;
     }
