@@ -11,6 +11,7 @@ public class VillageWars {
         Net.init();
         MinecraftForge.EVENT_BUS.register(new Simulation());
         MinecraftForge.EVENT_BUS.register(new War());
+        MinecraftForge.EVENT_BUS.register(new Growth());
         MinecraftForge.EVENT_BUS.register(new WarCommands());
         MinecraftForge.EVENT_BUS.register(new PlayerCommands());
     }
