@@ -46,6 +46,12 @@ public class Actions {
             default -> fail("Unbekannte Aktion.");
         };
     }
+        private static Result focus(ServerPlayer p, SettlementData d, Settlement s, int f) {
+        if (s.owner == null || !s.owner.equals(p.getUUID())) return fail("Das ist nicht dein Dorf.");
+        if (f < 0 || f >= Growth.FOCUS_NAMES.length) return fail("Unbekannter Schwerpunkt.");
+        Growth.setFocus(d, s, f);
+        return ok("Schwerpunkt: " + Growth.FOCUS_NAMES[f]);
+    }
 
     private static Result gift(ServerPlayer p, SettlementData d, Settlement s) {
         ItemStack held = p.getMainHandItem();
