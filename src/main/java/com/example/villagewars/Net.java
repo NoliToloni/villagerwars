@@ -76,7 +76,7 @@ public class Net {
     public static class InfoMsg {
         public boolean found;
         public String name = "";
-        public int color, population, soldiers, tier, field, troops;
+        public int color, population, soldiers, tier, field, troops, focus, houses;
         public int food, wood, iron, gold;
         public int rep;
         public String owner = "";
@@ -111,6 +111,8 @@ public class Net {
             m.war = d.atWar(s) || War.inWar(d, s);
             m.fallen = War.isFallen(s.id, p.getServer().overworld().getGameTime());
             m.hasOwn = Actions.countOwned(d, p) > 0;
+            m.focus = Growth.getFocus(d, s);
+            m.houses = Growth.getHouses(d, s);
             m.field = War.field(p.getServer().overworld(), s.id);
             m.troops = m.mine ? War.ownTroops(p.getServer().overworld(), s.center, p.getUUID(), 150) : 0;
 
