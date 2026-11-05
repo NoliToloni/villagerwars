@@ -22,7 +22,7 @@ import java.util.Optional;
 /** Alle Spieleraktionen (werden vom Menü aufgerufen). */
 public class Actions {
     public static final int RANGE = 120;
-    public static final int GIFT = 1, SUPPORT = 2, HIRE1 = 3, HIRE3 = 4, CLAIM = 5, COLLECT = 6, DECLARE = 7, PEACE = 8;
+    public static final int GIFT = 1, SUPPORT = 2, HIRE1 = 3, HIRE3 = 4, CLAIM = 5, COLLECT = 6, DECLARE = 7, PEACE = 8, FOCUS = 9;
 
     public record Result(boolean ok, String msg) {}
 
