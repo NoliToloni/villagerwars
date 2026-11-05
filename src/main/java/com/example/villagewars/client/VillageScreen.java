@@ -110,7 +110,7 @@ public class VillageScreen extends Screen {
             g.drawString(this.font, tag, left + W - 10 - this.font.width(tag), top + 10, info.mine ? 0xFF55FF55 : 0xFFFFDD66);
         }
         g.drawString(this.font, "Einwohner " + info.population + "   Soldaten " + info.soldiers
-                + (info.field > 0 ? " (+" + info.field + " im Kampf)" : ""), tx, top + 26, 0xFFDDDDDD);
+                + (info.field > 0 ? " (+" + info.field + " sichtbar)" : ""), tx, top + 26, 0xFFDDDDDD);
         g.drawString(this.font, "Nahrung " + info.food + "   Holz " + info.wood + "   Eisen " + info.iron + "   Gold " + info.gold,
                 tx, top + 38, 0xFFDDDDDD);
         String eq = "Ausrüstung: " + Equipment.TIER_NAMES[Math.min(3, info.tier)];
