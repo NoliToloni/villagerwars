@@ -42,6 +42,7 @@ public class Actions {
             case COLLECT -> collect(p, d, s);
             case DECLARE -> declare(p, d, s, arg);
             case PEACE -> peace(p, d, s, arg);
+            case FOCUS -> focus(p, d, s, arg);
             default -> fail("Unbekannte Aktion.");
         };
     }
