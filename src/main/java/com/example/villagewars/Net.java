@@ -149,6 +149,8 @@ public class Net {
             b.writeBoolean(m.fallen);
             b.writeVarInt(m.field);
             b.writeVarInt(m.troops);
+            b.writeVarInt(m.focus);
+            b.writeVarInt(m.houses);
             b.writeUtf(m.feedback);
             b.writeBoolean(m.ok);
             b.writeVarInt(m.neighbours.size());
@@ -180,6 +182,8 @@ public class Net {
             m.fallen = b.readBoolean();
             m.field = b.readVarInt();
             m.troops = b.readVarInt();
+            m.focus = b.readVarInt();
+            m.houses = b.readVarInt();
             m.feedback = b.readUtf();
             m.ok = b.readBoolean();
             int n = b.readVarInt();

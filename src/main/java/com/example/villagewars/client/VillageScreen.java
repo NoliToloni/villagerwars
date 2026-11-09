@@ -2,6 +2,7 @@ package com.example.villagewars.client;
 
 import com.example.villagewars.Actions;
 import com.example.villagewars.Equipment;
+import com.example.villagewars.Growth;
 import com.example.villagewars.Net;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -58,6 +59,10 @@ public class VillageScreen extends Screen {
                 add(left + W - 112, ny - 2, 50, 11, "Krieg", Actions.DECLARE, i, !n.war);
                 add(left + W - 60, ny - 2, 50, 11, "Frieden", Actions.PEACE, i, n.war);
                 ny += 12;
+            }
+            int fw = (W - 20) / Growth.FOCUS_NAMES.length;
+            for (int i = 0; i < Growth.FOCUS_NAMES.length; i++) {
+                add(left + 10 + i * fw, top + 190, fw - 2, 16, Growth.FOCUS_NAMES[i], Actions.FOCUS, i, info.focus != i);
             }
         } else {
             boolean canHire = info.rep >= 20;
@@ -132,6 +137,11 @@ public class VillageScreen extends Screen {
             String line = n.name + "  " + (n.rel > 0 ? "+" : "") + n.rel + "  " + n.dist + "m" + (n.war ? " !" : "");
             g.drawString(this.font, line, tx + 4, ny, c);
             ny += 12;
+        }
+
+        if (info.mine) {
+            g.drawString(this.font, "Schwerpunkt: " + Growth.FOCUS_NAMES[Math.min(4, info.focus)] + "   Häuser gebaut: " + info.houses,
+                    tx, top + 178, 0xFFDDDDDD);
         }
 
         String hint = info.mine ? "Krieg erklären, dann selbst mit deinen Soldaten hinziehen."
